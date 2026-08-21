@@ -554,14 +554,55 @@ function tapEl(ti){
   speak(t.say||t.label);
 }
 function speakNow(){var pg=bk.pages[bk.page];if(pg)speak(pg.txt)}
+/* ===== 柔和朗读：优选自然女声 + 放慢 + 分段停顿 ===== */
+var _softVoice=null;
+function pickSoftVoice(){
+  var vs=window.speechSynthesis&&speechSynthesis.getVoices?speechSynthesis.getVoices():[];
+  var zh=vs.filter(function(v){return v.lang&&String(v.lang).toLowerCase().indexOf('zh')===0});
+  if(!zh.length)return null;
+  function score(v){
+    var n=String(v.name||'').toLowerCase();
+    if(/xiaoxiao|yaoyao|xiaoyi|yunjian|yunyang|yunxi|yunxia|晓晓|瑶瑶/.test(n))return 5;
+    if(/online|natural|神经/.test(n))return 4;
+    if(/google/.test(n))return 3;
+    if(/huihui|kangkang|tingting|meijia/.test(n))return 2;
+    return 1;
+  }
+  zh.sort(function(a,b){return score(b)-score(a)});
+  return zh[0];
+}
+var _spQueue=[],_spTimer=null;
 function speak(text){
   try{
     if(!('speechSynthesis' in window)){toast('本设备不支持朗读');return}
+    if(!_softVoice)_softVoice=pickSoftVoice();
+    if(!_softVoice&&speechSynthesis.addEventListener){
+      speechSynthesis.addEventListener('voiceschanged',function(){_softVoice=pickSoftVoice()},{once:true});
+    }
     speechSynthesis.cancel();
-    var u=new SpeechSynthesisUtterance(String(text));
-    u.lang='zh-CN';u.rate=0.75;u.pitch=1.15;
-    speechSynthesis.speak(u);
+    if(_spTimer){clearTimeout(_spTimer);_spTimer=null}
+    _spQueue=[];
+    var s=String(text).replace(/\s+/g,' ').trim();
+    if(!s)return;
+    var parts=s.split(/[。！？；，、…\n]+/).map(function(x){return x.trim()}).filter(function(x){return x});
+    if(parts.length<=1){_speakOne(s);return}
+    _spQueue=parts;
+    _speakNext();
   }catch(e){}
+}
+function _speakOne(t){
+  var u=new SpeechSynthesisUtterance(t);
+  u.lang='zh-CN';
+  if(_softVoice&&String(_softVoice.lang||'').toLowerCase().indexOf('zh')===0)u.voice=_softVoice;
+  u.rate=0.82;u.pitch=1.05;
+  u.onend=function(){
+    if(_spQueue.length){_spTimer=setTimeout(function(){_speakNext()},180)}
+  };
+  speechSynthesis.speak(u);
+}
+function _speakNext(){
+  if(!_spQueue.length){_spTimer=null;return}
+  _speakOne(_spQueue.shift());
 }
 function toggleAuto(){
   var speeds=[0,8,5,3];

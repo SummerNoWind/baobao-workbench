@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>宝宝绘本馆</title>
+<!-- 本工作台为本地单文件方案：数据存储于浏览器 localStorage（key 前缀 wb_picbook_），通过导出/导入 JSON 备份迁移 -->
+<style>
+:root{
+  --c-main:#FF8A3D; --c-main-d:#F2650A; --c-sun:#FFC53D; --c-grass:#4CAF7D;
+  --c-sky:#4A9BD8; --c-grape:#9B6DE3; --c-red:#E5484D; --c-ink:#3A3A3A;
+  --c-bg:#FFF7EC; --c-card:#FFFFFF; --c-line:#FFE3C2;
+  --r-lg:24px; --r-md:16px;
+  --shadow:0 6px 20px rgba(255,138,61,.14);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;
+  background:var(--c-bg); color:var(--c-ink);
+  min-height:100vh; padding-bottom:calc(40px + env(safe-area-inset-bottom));
+}
+button{font-family:inherit;border:none;cursor:pointer;font-size:16px}
+input,select,textarea{font-family:inherit;font-size:16px;color:var(--c-ink)}
+/* ===== 顶部 ===== */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(135deg,#FF9A4D,#FF6B3D);
+  padding:14px 16px calc(14px + env(safe-area-inset-top));
+  color:#fff;
+  box-shadow:0 4px 16px rgba(242,101,10,.25);
+}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand svg{flex:none}
+.brand .t1{font-size:20px;font-weight:800;letter-spacing:1px}
+.brand .t2{font-size:12px;opacity:.9;margin-top:2px}
+.mode-switch{display:flex;background:rgba(255,255,255,.22);border-radius:999px;padding:4px;gap:4px}
+.mode-switch button{
+  min-width:64px;min-height:40px;border-radius:999px;font-weight:700;font-size:15px;
+  background:transparent;color:#fff;padding:0 14px;
+}
+.mode-switch button.on{background:#fff;color:var(--c-main-d)}
+.mode-switch button.off{opacity:.85}
+.sync-note{
+  margin-top:10px;background:rgba(255,255,255,.16);border-radius:12px;
+  padding:8px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px;
+}
+/* ===== 主容器 ===== */
+.wrap{max-width:720px;margin:0 auto;padding:16px 14px}
+/* ===== 今日绘本（置顶） ===== */
+.today-card{
+  background:var(--c-card);border-radius:var(--r-lg);box-shadow:var(--shadow);
+  padding:18px 16px;margin-bottom:16px;border:2px solid var(--c-line);
+}
+.sec-title{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;margin-bottom:12px}
+.sec-title svg{flex:none}
+.today-item{
+  display:flex;align-items:center;gap:10px;background:#FFF9F0;
+  border:2px solid #FFE3C2;border-radius:14px;padding:10px 12px;margin-bottom:8px;
+}
+.today-item.overdue{border-color:#F8B4B6;background:#FFF5F5}
+.today-item.done{border-color:#B8E6CD;background:#EDF8F1}
+.today-item .ch{
+  width:44px;height:44px;flex:none;border-radius:12px;background:var(--c-sun);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:800;color:#7A4A00;
+}
+.today-item.overdue .ch{background:#F9C7C9;color:#A12226}
+.today-item.done .ch{background:#4CAF7D;color:#fff}
+.today-item .info{flex:1;min-width:0}
+.today-item .info .nm{font-size:15px;font-weight:700}
+.today-item .info .st{font-size:12.5px;color:#8A8578;margin-top:2px}
+.today-item .do{
+  flex:none;min-width:74px;min-height:44px;border-radius:12px;font-weight:700;font-size:14px;
+  background:var(--c-main);color:#fff;padding:0 12px;
+}
+.today-item.overdue .do{background:var(--c-red)}
+.today-item.done .do{background:var(--c-grass)}
+.today-stats{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}
+.today-stats .pill{
+  background:#FFF2DF;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;color:#B45A14;
+}
+/* ===== 金币 ===== */
+.coin-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:linear-gradient(135deg,#FFC53D,#FF9A4D);border-radius:16px;
+  padding:12px 16px;color:#7A4A00;font-weight:800;font-size:16px;margin-bottom:16px;
+  border:2px solid #F5B83D;
+}
+.coin-bar .coin{display:flex;align-items:center;gap:8px;font-size:20px}
+.coin-bar .coin svg{width:26px;height:26px}
+.coin-bar .coin-tip{font-size:12.5px;font-weight:600;opacity:.85}
+/* ===== 卡片 ===== */
+.card{background:var(--c-card);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px 16px;margin-bottom:16px;border:2px solid var(--c-line)}
+/* ===== 绘本馆 ===== */
+.bk-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:420px){.bk-row{grid-template-columns:1fr}}
+.book-item{position:relative;border-radius:20px;overflow:hidden;border:2px solid var(--c-line);background:#fff;text-align:left;padding:0;display:flex;flex-direction:column}
+.book-item .bk-cover{position:relative;aspect-ratio:3/2;background:linear-gradient(160deg,#FFF9F0,#FFEFD9)}
+.book-item .bk-cover svg{width:100%;height:100%;display:block}
+.book-item .bk-cover .bk-badge{position:absolute;top:8px;left:8px;background:rgba(255,255,255,.94);border-radius:999px;font-size:11.5px;font-weight:800;color:#B45A14;padding:4px 10px;z-index:2}
+.book-item .bk-cover .bk-new{position:absolute;top:8px;right:8px;background:#FF6B6B;color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:3px 9px;z-index:2}
+.book-item .bk-info{padding:10px 12px 12px;flex:1}
+.book-item .bk-info .nm{font-size:15.5px;font-weight:800}
+.book-item .bk-info .sub{font-size:12px;color:#8A8578;margin-top:4px;display:flex;gap:8px;align-items:center}
+.book-item .bk-info .sub .mini-done{color:#2E8B5C;font-weight:700}
+.book-item .bk-info .bk-open{margin-top:8px;width:100%;min-height:50px;border-radius:12px;background:var(--c-main);color:#fff;font-weight:800;font-size:14.5px}
+.book-item .bk-info .bk-open.done{background:#DFF2E7;color:#2E8B5C}
+.book-reco{border:2px dashed #F5C68A;background:linear-gradient(120deg,#FFF9F0,#FFF1DC);border-radius:18px;padding:14px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
+.book-reco .reco-cover{width:88px;height:88px;flex:none;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.book-reco .reco-cover svg{width:100%;height:100%;display:block}
+.book-reco .reco-info{flex:1;min-width:0}
+.book-reco .reco-tag{font-size:11.5px;font-weight:800;color:#C07F00;background:#FFF3D6;border-radius:999px;padding:3px 10px;display:inline-block}
+.book-reco .reco-name{font-size:17px;font-weight:800;margin-top:5px}
+.book-reco .reco-tip{font-size:12.5px;color:#8A8578;margin-top:3px;line-height:1.5}
+.book-reco .reco-btn{flex:none;min-width:88px;min-height:56px;border-radius:14px;background:var(--c-main);color:#fff;font-weight:800;font-size:15px}
+/* ===== 阅读器 ===== */
+.reader{position:fixed;inset:0;z-index:200;background:#FFF7EC;display:flex;flex-direction:column}
+.reader-top{display:flex;align-items:center;gap:8px;padding:10px 12px calc(8px + env(safe-area-inset-top));background:#fff;border-bottom:2px solid var(--c-line)}
+.reader-top .rt-title{flex:1;min-width:0;font-weight:800;font-size:16px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reader-top .rt-close{flex:none;min-width:52px;min-height:52px;border-radius:14px;background:#F3EEE3;color:#6E675A;font-size:15px;font-weight:700}
+.reader-top .rt-auto{flex:none;min-height:52px;border-radius:14px;background:#FFF2DF;color:#C07F00;font-size:13px;font-weight:800;padding:0 12px}
+.reader-top .rt-auto.on{background:#DFF2E7;color:#2E8B5C}
+.reader-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:10px 12px;min-height:0}
+.reader-scene{position:relative;width:100%;max-width:560px;aspect-ratio:3/2;border-radius:24px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.14);transition:opacity .22s ease,transform .22s ease}
+.reader-scene.fade{opacity:0;transform:scale(.985)}
+.reader-scene .scene-svg{position:absolute;inset:0}
+.reader-scene .scene-svg svg{width:100%;height:100%;display:block}
+.tap-el{position:absolute;width:72px;height:72px;margin:-36px 0 0 -36px;border-radius:50%;background:transparent;border:none;cursor:pointer}
+.tap-el .bubble{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#fff;border:3px solid var(--c-main);color:var(--c-main-d);font-size:20px;font-weight:900;border-radius:999px;padding:6px 16px;white-space:nowrap;opacity:0;box-shadow:0 4px 14px rgba(0,0,0,.16);pointer-events:none;z-index:3}
+.tap-el.show .bubble{opacity:1}
+.tap-el .ring{position:absolute;inset:-4px;border-radius:50%;border:4px solid rgba(255,255,255,.9);opacity:0;pointer-events:none}
+.tap-el.pop .ring{animation:popRing .55s ease}
+.tap-el.pop .bubble{animation:pop .3s ease}
+@keyframes popRing{0%{transform:scale(.55);opacity:.95}100%{transform:scale(1.9);opacity:0}}
+.reader-txt{display:flex;align-items:center;gap:10px;padding:2px 16px 10px;justify-content:center}
+.reader-txt .rt-word{font-size:26px;font-weight:900;color:#3A2E1E;line-height:1.4;text-align:center}
+.reader-txt .rt-speak{flex:none;min-width:60px;min-height:60px;border-radius:16px;background:var(--c-main);color:#fff}
+.reader-nav{display:flex;gap:12px;padding:0 16px calc(14px + env(safe-area-inset-bottom))}
+.reader-nav button{flex:1;min-height:64px;border-radius:18px;font-size:18px;font-weight:800}
+.reader-nav .prev{background:#F3EEE3;color:#6E675A}
+.reader-nav .prev:disabled{background:#F3EEE3;color:#C8C2B4}
+.reader-nav .next{background:var(--c-main);color:#fff}
+.reader-nav .next:disabled{background:#E4DFD2;color:#A8A295}
+.reader-nav .next.done-btn{background:#4CAF7D}
+/* ===== 完成页 ===== */
+.book-done{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,247,236,.97);border-radius:24px;z-index:5;text-align:center;padding:20px}
+.book-done .bd-star{width:96px;height:96px;animation:spinStar .8s ease}
+@keyframes spinStar{0%{transform:scale(0) rotate(-200deg)}60%{transform:scale(1.25) rotate(12deg)}100%{transform:scale(1) rotate(0)}}
+.book-done .bd-t1{font-size:26px;font-weight:900;color:#B45A14;margin-top:14px}
+.book-done .bd-t2{font-size:15px;color:#8A8578;margin-top:8px;line-height:1.6}
+.book-done .bd-coins{display:inline-flex;align-items:center;gap:6px;margin-top:6px;background:#FFF3D6;border-radius:999px;padding:6px 16px;font-size:15px;font-weight:800;color:#C07F00}
+.book-done button{min-width:150px;min-height:60px;border-radius:16px;background:var(--c-main);color:#fff;font-size:17px;font-weight:800;margin-top:18px}
+/* ===== 家长面板 ===== */
+.pa-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.pa-tabs button{
+  min-height:46px;border-radius:14px;padding:0 16px;font-weight:700;font-size:14px;
+  background:var(--c-card);border:2px solid var(--c-line);color:#6E675A;
+}
+.pa-tabs button.on{background:var(--c-main);border-color:var(--c-main);color:#fff}
+.pa-block{background:var(--c-card);border:2px solid var(--c-line);border-radius:var(--r-lg);padding:16px;margin-bottom:14px}
+.pa-block h4{font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.pa-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.pa-row label{font-size:14px;font-weight:600;min-width:76px}
+.pa-row input,.pa-row select{
+  flex:1;min-width:160px;min-height:46px;border-radius:12px;border:2px solid var(--c-line);
+  padding:0 12px;background:#FFFDF8;
+}
+.pa-row .add-btn{min-height:50px;border-radius:12px;background:var(--c-main);color:#fff;font-weight:700;padding:0 18px}
+.req-item{
+  border:2px solid var(--c-line);border-radius:14px;padding:12px;margin-bottom:10px;
+  display:flex;align-items:center;gap:10px;background:#FFF9F0;
+}
+.req-item .ri-info{flex:1;min-width:0}
+.req-item .ri-info .nm{font-size:15px;font-weight:700}
+.req-item .ri-info .st{font-size:12.5px;color:#8A8578;margin-top:2px}
+.album-thumb{position:relative;border-radius:16px;overflow:hidden;border:2px solid var(--c-line);margin-bottom:10px}
+.album-thumb img{width:100%;display:block;aspect-ratio:3/2;object-fit:cover}
+.bk-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bk-actions button{min-height:52px;border-radius:14px;font-weight:800;font-size:15px;color:#fff}
+.bk-actions .ex{background:var(--c-sky)}
+.bk-actions .im{background:var(--c-grape)}
+.danger-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.danger-actions button{min-height:48px;border-radius:14px;font-weight:700;font-size:14px;border:2px solid #F8B4B6;background:#fff;color:#A12226}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stats-grid .st-box{background:#FFF9F0;border:2px solid var(--c-line);border-radius:16px;padding:12px;text-align:center}
+.stats-grid .st-box .num{font-size:28px;font-weight:900;color:var(--c-main)}
+.stats-grid .st-box .lb{font-size:12.5px;color:#8A8578;margin-top:2px}
+/* ===== 密码弹窗 ===== */
+.pwd-overlay{
+  position:fixed;inset:0;z-index:200;background:rgba(60,40,20,.6);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.pwd-card{width:100%;max-width:360px;background:#fff;border-radius:24px;padding:26px 22px;text-align:center;animation:pop .25s ease}
+.pwd-card h3{font-size:19px;font-weight:800;margin-bottom:6px}
+.pwd-card .sub{font-size:13.5px;color:#8A8578;margin-bottom:18px}
+.pwd-inputs{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
+.pwd-inputs .dot{
+  width:54px;height:60px;border-radius:14px;border:2px solid var(--c-line);background:#FFFDF8;
+  display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:var(--c-main);
+}
+.pwd-inputs .dot.filled{border-color:var(--c-main);background:#FFF2DF}
+.pwd-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.pwd-keypad button{min-height:60px;border-radius:14px;font-size:22px;font-weight:800;background:#FFF9F0;border:2px solid var(--c-line)}
+.pwd-keypad button:active{background:var(--c-line)}
+.pwd-card .pwd-err{color:var(--c-red);font-size:13.5px;min-height:20px;margin-bottom:8px}
+/* ===== 通用 ===== */
+.hidden{display:none!important}
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:300;
+  background:rgba(50,40,20,.92);color:#fff;padding:12px 22px;border-radius:999px;
+  font-size:15px;font-weight:600;animation:pop .2s ease;max-width:86%;text-align:center;
+}
+.confirm-overlay{
+  position:fixed;inset:0;z-index:250;background:rgba(60,40,20,.55);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.confirm-card{width:100%;max-width:340px;background:#fff;border-radius:22px;padding:22px;text-align:center;animation:pop .25s ease}
+.confirm-card .msg{font-size:16px;font-weight:700;line-height:1.6;margin-bottom:16px}
+.confirm-card .acts{display:flex;gap:10px}
+.confirm-card .acts button{flex:1;min-height:50px;border-radius:14px;font-weight:800;font-size:15px}
+.confirm-card .no{background:#F3EEE3;color:#6E675A}
+.confirm-card .yes{background:var(--c-red);color:#fff}
+.empty-tip{text-align:center;color:#B8B2A6;font-size:14px;padding:20px 0}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部 ===== -->
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" fill="none"><rect x="2" y="2" width="30" height="30" rx="9" fill="#fff"/><path d="M4 9.5A2.5 2.5 0 016.5 7H30v20H6.5A2.5 2.5 0 014 29.5v-20z" fill="#4CAF7D"/><path d="M4 29.5A2.5 2.5 0 016.5 27H30" stroke="#2E7D5B" stroke-width="2.4" stroke-linejoin="round"/></svg>
+      <div><div class="t1">宝宝绘本馆</div><div class="t2" id="todayLine"></div></div>
+    </div>
+    <div class="mode-switch">
+      <button id="modeKid" class="on">宝宝模式</button>
+      <button id="modeParent" class="off">家长模式</button>
+    </div>
+  </div>
+  <div class="sync-note" id="backupNote">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>本地存储 · 数据保存在本机，建议家长定期导出备份</span>
+  </div>
+</header>
+
+<div class="wrap" id="app">
+
+  <!-- ===== 孩子模式 ===== -->
+  <div id="kidView">
+    <!-- 今日绘本（置顶） -->
+    <section class="today-card">
+      <div class="sec-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#F2650A" stroke-width="2"/><path d="M12 7v5l3 3" stroke="#F2650A" stroke-width="2" stroke-linecap="round"/></svg>
+        今日绘本
+      </div>
+      <div id="todayList"></div>
+      <div class="today-stats" id="todayStats"></div>
+    </section>
+
+    <!-- 金币 -->
+    <div class="coin-bar">
+      <span>我的金币</span>
+      <span class="coin">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#FFC53D" stroke="#D98E04" stroke-width="2"/><circle cx="12" cy="12" r="5.5" stroke="#D98E04" stroke-width="2" fill="none"/><text x="12" y="15.6" text-anchor="middle" font-size="8" font-weight="900" fill="#7A4A00">¥</text></svg>
+        <span id="coinNum">0</span>
+      </span>
+      <span class="coin-tip">读完一本得 2 金币</span>
+    </div>
+
+    <!-- 书架 -->
+    <div class="card">
+      <div class="sec-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 016.5 3H20v15H6.5A2.5 2.5 0 004 20.5v-15z" stroke="#4CAF7D" stroke-width="2" stroke-linejoin="round"/><path d="M4 20.5A2.5 2.5 0 016.5 18H20" stroke="#4CAF7D" stroke-width="2" stroke-linejoin="round"/></svg>
+        绘本书架
+      </div>
+      <div id="bookReco"></div>
+      <div class="bk-row" id="bookList"></div>
+      <div id="bookTodayTip"></div>
+    </div>
+  </div>
+
+  <!-- ===== 家长模式 ===== -->
+  <div id="parentView" class="hidden">
+    <div class="pa-tabs">
+      <button class="on" data-pa="manage">绘本管理</button>
+      <button data-pa="data">数据备份</button>
+    </div>
+    <div id="paManage" class="card"></div>
+    <div id="paData" class="card hidden"></div>
+  </div>
+</div>
+
+<script>
+/* ============ 手绘 SVG 精灵（以自身中心为原点） ============ */
+var PBE={
+  sun:'<g><circle r="26" fill="#FFD54F" stroke="#FFB300" stroke-width="3"/><g stroke="#FFB300" stroke-width="5" stroke-linecap="round"><path d="M0 -34v-8M0 34v8M-34 0h-8M34 0h8M-24 -24l-6 -6M24 24l6 6M24 -24l6 -6M-24 24l-6 6"/></g></g>',
+  cloud:'<g><ellipse cx="-12" cy="2" rx="18" ry="12" fill="#fff"/><ellipse cx="8" cy="-4" rx="14" ry="11" fill="#fff"/><ellipse cx="22" cy="4" rx="12" ry="9" fill="#E3F2FD"/></g>',
+  moon:'<g><path d="M8 -20a26 26 0 100 44 26 26 0 01-2 -44z" fill="#FFE082"/><circle cx="20" cy="-4" r="3" fill="#F9A825"/></g>',
+  cat:'<g><ellipse cx="0" cy="6" rx="22" ry="18" fill="#FFB74D"/><circle cx="-9" cy="-3" r="5" fill="#5D4037"/><circle cx="9" cy="-3" r="5" fill="#5D4037"/><path d="M-5 5q5 7 10 0" stroke="#5D4037" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M-16 -14l-7 -12M16 -14l7 -12" stroke="#FFB74D" stroke-width="6" stroke-linecap="round"/><path d="M-22 16q-10 6 -8 16M22 16q10 6 8 16" stroke="#FFB74D" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M-13 -4l-3 -4M13 -4l3 -4" stroke="#FFA726" stroke-width="3.4" stroke-linecap="round"/></g>',
+  dog:'<g><ellipse cx="0" cy="8" rx="22" ry="17" fill="#A1887F"/><circle cx="-8" cy="0" r="4.5" fill="#4E342E"/><circle cx="8" cy="0" r="4.5" fill="#4E342E"/><ellipse cx="0" cy="10" rx="9" ry="6" fill="#6D4C41"/><path d="M-12 -12l-8 -8M12 -12l8 -8" stroke="#A1887F" stroke-width="6" stroke-linecap="round"/><path d="M-16 20q-8 6 -6 14M16 20q8 6 6 14" stroke="#A1887F" stroke-width="6" stroke-linecap="round" fill="none"/></g>',
+  cow:'<g><ellipse rx="26" ry="18" cy="6" fill="#EFEBE9"/><path d="M-20 -8l-8 -14 12 6 6 -12 6 14" fill="none" stroke="#6D4C41" stroke-width="4" stroke-linecap="round"/><path d="M20 -8l8 -14 -12 6 -6 -12 -6 14" fill="none" stroke="#6D4C41" stroke-width="4" stroke-linecap="round"/><circle cx="-9" cy="0" r="3.6" fill="#3E2723"/><circle cx="9" cy="0" r="3.6" fill="#3E2723"/><ellipse cy="8" rx="8" ry="5" fill="#FFCC80"/></g>',
+  sheep:'<g><circle cx="-10" cy="-4" r="13" fill="#FAFAFA"/><circle cx="12" cy="-6" r="13" fill="#F5F5F5"/><ellipse cx="0" cy="6" rx="18" ry="13" fill="#fff"/><ellipse cx="-2" cy="4" rx="5" ry="3.4" fill="#FFCC80"/><circle cx="-7" cy="0" r="2.2" fill="#3E2723"/><circle cx="5" cy="0" r="2.2" fill="#3E2723"/></g>',
+  duck:'<g><ellipse cx="-4" cy="6" rx="20" ry="14" fill="#FFE082"/><circle cx="12" cy="-6" r="12" fill="#FFE082"/><path d="M24 -4l10 -6 -4 12" fill="#FFB300"/><circle cx="16" cy="-9" r="2.6" fill="#3E2723"/><path d="M-18 12q-6 8 2 12" stroke="#FF8F00" stroke-width="4" fill="none" stroke-linecap="round"/></g>',
+  rooster:'<g><path d="M-6 8c-6 -8 2 -18 12 -16" stroke="#EF5350" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="12" cy="-10" r="9" fill="#EF5350"/><path d="M18 -18l4 -8 2 8 6 -2 -3 7" fill="#E53935"/><circle cx="15" cy="-12" r="2.2" fill="#3E2723"/><ellipse cx="6" cy="4" rx="14" ry="10" fill="#FF7043"/><path d="M-12 14l-8 10M-6 14l-4 10M0 14l0 10" stroke="#FF7043" stroke-width="5" stroke-linecap="round"/></g>',
+  milk:'<g><path d="M-12 -14h24v22a12 12 0 01-24 0z" fill="#fff" stroke="#B0BEC5" stroke-width="3"/><path d="M-12 -14l-4 -8h30l-2 8" fill="#E3F2FD" stroke="#B0BEC5" stroke-width="3" stroke-linejoin="round"/><path d="M-4 -4h8v10h-8z" fill="#EFEBE9"/></g>',
+  ball:'<g><circle r="20" fill="#FF7043"/><path d="M-14 -8a20 20 0 0128 0" stroke="#fff" stroke-width="5" fill="none"/><circle cx="-8" cy="-10" r="6" fill="#fff" opacity=".45"/></g>',
+  fish:'<g><path d="M-24 0l16 -12v24z" fill="#42A5F5"/><ellipse rx="20" ry="13" fill="#64B5F6"/><circle cx="8" cy="-4" r="2.8" fill="#0D47A1"/><path d="M-6 0q6 6 0 10" stroke="#E3F2FD" stroke-width="3" fill="none"/></g>',
+  apple:'<g><circle r="20" fill="#EF5350"/><path d="M0 -18l4 -7 5 5" fill="#66BB6A"/><path d="M-6 22a22 22 0 01-16 6" stroke="#C62828" stroke-width="4" fill="none"/></g>',
+  banana:'<g><path d="M-18 4C-10 -18 14 -18 22 -8c6 8 -4 16 -14 14-8 -2 -18 -2 -24 -2z" fill="#FFD54F" stroke="#F9A825" stroke-width="3"/><circle cx="15" cy="-6" r="2.2" fill="#8D6E63"/></g>',
+  watermelon:'<g><path d="M-26 0a26 26 0 0152 0z" fill="#4CAF50"/><path d="M-19 -4a19 19 0 0138 0z" fill="#C62828"/><circle cx="-8" cy="-4" r="3" fill="#3E2723"/><circle cx="0" cy="2" r="3" fill="#3E2723"/><circle cx="8" cy="-4" r="3" fill="#3E2723"/></g>',
+  sea:'<g><path d="M-30 4q10 -12 20 0t20 0 20 0 20 0" fill="none" stroke="#1E88E5" stroke-width="8" stroke-linecap="round"/><path d="M-30 16q10 -12 20 0t20 0 20 0 20 0" fill="none" stroke="#42A5F5" stroke-width="8" stroke-linecap="round"/></g>',
+  rainbow:'<g><path d="M-30 10a34 34 0 0160 0" fill="none" stroke="#EF5350" stroke-width="6" stroke-linecap="round"/><path d="M-30 10a28 28 0 0156 0" fill="none" stroke="#FFA726" stroke-width="6" stroke-linecap="round"/><path d="M-30 10a22 22 0 0144 0" fill="none" stroke="#FFEE58" stroke-width="6" stroke-linecap="round"/><path d="M-30 10a16 16 0 0132 0" fill="none" stroke="#66BB6A" stroke-width="6" stroke-linecap="round"/><path d="M-30 10a10 10 0 0120 0" fill="none" stroke="#42A5F5" stroke-width="6" stroke-linecap="round"/></g>'
+};
+function pbScene(k){
+  if(k==='day')return '<rect width="300" height="220" rx="24" fill="#BFE6FF"/><ellipse cx="150" cy="208" rx="220" ry="72" fill="#A5D6A7"/>';
+  if(k==='night')return '<rect width="300" height="220" rx="24" fill="#2B3A8C"/><ellipse cx="150" cy="208" rx="220" ry="72" fill="#33496B"/><g fill="#FFE082">'+[0,1,2,3,4].map(function(i){var ps=[[42,30],[90,54],[170,26],[205,58],[262,34],[120,70]];var p=ps[i%6];return '<path d="M'+p[0]+' '+p[1]+'l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z"/>'}).join('')+'</g>';
+  if(k==='grass')return '<rect width="300" height="220" rx="24" fill="#E8F7E0"/><ellipse cx="150" cy="212" rx="230" ry="85" fill="#A5D6A7"/>';
+  if(k==='pond')return '<rect width="300" height="220" rx="24" fill="#CFE8FF"/><ellipse cx="150" cy="150" rx="140" ry="78" fill="#64B5F6"/><ellipse cx="150" cy="212" rx="220" ry="72" fill="#A5D6A7"/>';
+  return '<rect width="300" height="220" rx="24" fill="#FFF3D6"/>';
+}
+function pbSpr(id,x,y,s){return '<g transform="translate('+x+' '+y+') scale('+(s||1)+')">'+PBE[id]+'</g>'}
+function pbSvg(pg){
+  var bg=(pg.scene==='col')?('<rect width="300" height="220" rx="24" fill="'+pg.bg+'"/>'):pbScene(pg.scene);
+  return '<svg viewBox="0 0 300 220">'+bg+(pg.spr||[]).map(function(a){return pbSpr(a[0],a[1],a[2],a[3])}).join('')+'</svg>';
+}
+var BOOKS=[
+  {id:'cat',title:'小猫咪的一天',tag:'生活',pages:[
+    {scene:'day',txt:'天亮了，太阳出来了。',spr:[['sun',54,44,1],['cloud',150,44,.9]],tap:[{x:54,y:44,label:'太阳',say:'太阳，暖洋洋'},{x:150,y:44,label:'白云',say:'白云，软软的'},{x:238,y:150,label:'小猫',say:'喵～'}]},
+    {scene:'grass',txt:'小猫伸个懒腰，起床啦。',spr:[['cat',125,115,1.35]],tap:[{x:125,y:115,label:'小猫',say:'喵～喵～'}]},
+    {scene:'day',txt:'咕嘟咕嘟，喝牛奶啦。',spr:[['cat',100,120,1.2],['milk',215,148,1.25]],tap:[{x:100,y:120,label:'小猫',say:'喵～'},{x:215,y:148,label:'牛奶',say:'咕嘟咕嘟'}]},
+    {scene:'grass',txt:'小球滚呀滚，真好玩！',spr:[['cat',92,118,1.2],['ball',218,138,1.2]],tap:[{x:92,y:118,label:'小猫',say:'喵喵～'},{x:218,y:138,label:'小球',say:'骨碌碌'}]},
+    {scene:'pond',txt:'小鱼游来游去，真漂亮。',spr:[['cat',92,150,1.2],['fish',216,116,1.1]],tap:[{x:92,y:150,label:'小猫',say:'喵～'},{x:216,y:116,label:'小鱼',say:'游呀游'}]},
+    {scene:'night',txt:'天黑了，小猫睡觉啦。晚安～',spr:[['cat',130,150,1.25],['moon',242,44,1]],tap:[{x:130,y:150,label:'小猫',say:'呼噜呼噜'},{x:242,y:44,label:'月亮',say:'晚安～'}]}
+  ]},
+  {id:'voice',title:'动物怎么叫？',tag:'动物',pages:[
+    {scene:'grass',txt:'小猫咪怎么叫？',spr:[['cat',150,105,1.5]],tap:[{x:150,y:105,label:'小猫',say:'喵～喵～'}]},
+    {scene:'grass',txt:'小狗狗怎么叫？',spr:[['dog',150,105,1.5]],tap:[{x:150,y:105,label:'小狗',say:'汪～汪～'}]},
+    {scene:'grass',txt:'小奶牛怎么叫？',spr:[['cow',150,105,1.4]],tap:[{x:150,y:105,label:'奶牛',say:'哞～'}]},
+    {scene:'grass',txt:'小羊怎么叫？',spr:[['sheep',150,105,1.5]],tap:[{x:150,y:105,label:'小羊',say:'咩～咩～'}]},
+    {scene:'pond',txt:'小鸭子怎么叫？',spr:[['duck',150,115,1.5]],tap:[{x:150,y:115,label:'小鸭',say:'嘎嘎嘎～'}]},
+    {scene:'grass',txt:'大公鸡怎么叫？',spr:[['rooster',150,105,1.5]],tap:[{x:150,y:105,label:'公鸡',say:'喔喔喔～'}]}
+  ]},
+  {id:'color',title:'颜色宝宝',tag:'颜色',pages:[
+    {scene:'col',bg:'#FFEBEE',txt:'红红的苹果。',spr:[['apple',150,108,1.7]],tap:[{x:150,y:108,label:'苹果',say:'红色'}]},
+    {scene:'col',bg:'#FFF8E1',txt:'黄黄的香蕉。',spr:[['banana',150,108,1.7]],tap:[{x:150,y:108,label:'香蕉',say:'黄色'}]},
+    {scene:'col',bg:'#E8F5E9',txt:'绿绿的西瓜。',spr:[['watermelon',150,108,1.5]],tap:[{x:150,y:108,label:'西瓜',say:'绿色'}]},
+    {scene:'col',bg:'#E3F2FD',txt:'蓝蓝的大海。',spr:[['sea',150,110,1.5]],tap:[{x:150,y:110,label:'大海',say:'蓝色'}]},
+    {scene:'col',bg:'#F3E5F5',txt:'白白的云朵。',spr:[['cloud',150,100,1.7]],tap:[{x:150,y:100,label:'云朵',say:'白色'}]},
+    {scene:'col',bg:'#FFF3D6',txt:'五颜六色的彩虹！',spr:[['rainbow',150,112,1.55]],tap:[{x:150,y:112,label:'彩虹',say:'五颜六色，真漂亮'}]}
+  ]}
+];
+function bookCover(b){
+  if(b.img)return '<img src="'+b.img+'" alt="" style="width:100%;height:100%;object-fit:cover">';
+  if(b.id==='cat')return '<svg viewBox="0 0 300 200">'+pbScene('day')+'<g transform="translate(150 104) scale(2)">'+PBE.cat+'</g></svg>';
+  if(b.id==='voice')return '<svg viewBox="0 0 300 200">'+pbScene('grass')+'<g transform="translate(72 108) scale(1.5)">'+PBE.dog+'</g><g transform="translate(152 108) scale(1.5)">'+PBE.sheep+'</g><g transform="translate(232 108) scale(1.5)">'+PBE.duck+'</g></svg>';
+  return '<svg viewBox="0 0 300 200">'+pbScene('col','#FFF3D6')+'<g transform="translate(150 96) scale(2)">'+PBE.rainbow+'</g></svg>';
+}
+
+/* ============ 存储（独立 key，与识字台互不干扰） ============ */
+var K={reads:'wb_picbook_reads',custom:'wb_picbook_custom',coins:'wb_picbook_coins',pwd:'wb_picbook_pwd',pwdSet:'wb_picbook_pwdset'};
+function load(k,def){try{var v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function getReads(){return load(K.reads,[])}
+function putReads(r){save(K.reads,r)}
+function getCustom(){return load(K.custom,[])}
+function putCustom(c){save(K.custom,c)}
+function getCoins(){return load(K.coins,8)}
+function putCoins(n){save(K.coins,n)}
+function getPwd(){return localStorage.getItem(K.pwd)||''}
+function hasPwd(){return localStorage.getItem(K.pwdSet)==='1'}
+function bookTodayRead(id){return getReads().some(function(r){return r.date===today()&&r.book===id})}
+function bookTodayN(){var rs=getReads().filter(function(r){return r.date===today()});var u={};rs.forEach(function(r){u[r.book]=1});return Object.keys(u).length}
+function readStreak(){
+  var rs=getReads(),days={};
+  rs.forEach(function(r){days[r.date]=1});
+  var n=0,d=new Date();
+  for(;;){
+    var k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(days[k]){n++;d.setDate(d.getDate()-1)}else break;
+  }
+  return n;
+}
+
+/* ============ 工具 ============ */
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function todayCN(){var d=new Date(),w=['日','一','二','三','四','五','六'];return (d.getMonth()+1)+'月'+d.getDate()+'日 · 星期'+w[d.getDay()]}
+function starSVG(on){return on
+  ?'<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 16.9 6.1 20l1.2-6.5L2.5 8.9l6.6-.9z" fill="#FFC53D"/></svg>'
+  :'<svg viewBox="0 0 24 24" class="off"><path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 16.9 6.1 20l1.2-6.5L2.5 8.9l6.6-.9z" fill="#E4DFD2"/></svg>'}
+function coinSVG(){return '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFC53D" stroke="#D98E04" stroke-width="2"/><circle cx="12" cy="12" r="5.5" stroke="#D98E04" stroke-width="2" fill="none"/><text x="12" y="15.8" text-anchor="middle" font-size="8" font-weight="900" fill="#7A4A00">¥</text></svg>'}
+
+/* ============ 提示 ============ */
+var toastTimer=null;
+function toast(msg){
+  var t=document.querySelector('.toast');
+  if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t)}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.style.opacity='0'},2200);
+}
+function confirmDlg(msg,cb){
+  var o=document.createElement('div');o.className='confirm-overlay';
+  o.innerHTML='<div class="confirm-card"><div class="msg">'+esc(msg)+'</div><div class="acts"><button class="no">再想想</button><button class="yes">确定</button></div></div>';
+  o.querySelector('.no').onclick=function(){o.remove()};
+  o.querySelector('.yes').onclick=function(){o.remove();cb()};
+  document.body.appendChild(o);
+}
+
+/* ============ 渲染：今日绘本（置顶） ============ */
+var state={mode:'kid'};
+function yesterday(){var d=new Date();d.setDate(d.getDate()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function renderHome(){
+  var box=$('todayList'), stats=$('todayStats');
+  var todayN=bookTodayN(), y=yesterday();
+  var yRead=getReads().some(function(r){return r.date===y});
+  var html='';
+  if(todayN===0){
+    var overdue=yRead;
+    html+='<div class="today-item'+(overdue?' overdue':'')+'">'+
+      '<div class="ch">'+(overdue?'!':'读')+'</div>'+
+      '<div class="info"><div class="nm">'+(overdue?'昨天读了，今天还没读':'今天还没读绘本')+'</div>'+
+      '<div class="st">'+(overdue?'连续阅读快断啦，和宝宝读一本吧':'点一点会发声，和宝宝一起读 3 分钟吧')+'</div></div>'+
+      '<button class="do" onclick="goRead()">去读</button></div>';
+  }else{
+    html+='<div class="today-item done">'+
+      '<div class="ch"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'+
+      '<div class="info"><div class="nm">今日已读 '+todayN+' 本，真棒！</div>'+
+      '<div class="st">连续阅读 '+readStreak()+' 天</div></div>'+
+      '<button class="do" onclick="goRead()">再读一本</button></div>';
+  }
+  box.innerHTML=html;
+  stats.innerHTML=
+    '<span class="pill">累计读本 '+getReads().length+'</span>'+
+    '<span class="pill">今日已读 '+todayN+' 本</span>'+
+    '<span class="pill">连续阅读 '+readStreak()+' 天</span>';
+}
+
+/* ============ 渲染：书架 ============ */
+function renderBook(){
+  var reco=$('bookReco'), list=$('bookList'), tip=$('bookTodayTip');
+  var todayReadN=bookTodayN();
+  var recoBook=null;
+  BOOKS.concat(getCustom()).forEach(function(b){
+    if(!bookTodayRead(b.id)&&!recoBook)recoBook=b;
+  });
+  if(recoBook){
+    reco.innerHTML='<div class="book-reco">'+
+      '<div class="reco-cover">'+bookCover(recoBook)+'</div>'+
+      '<div class="reco-info"><span class="reco-tag">今日推荐</span>'+
+      '<div class="reco-name">'+esc(recoBook.title)+'</div>'+
+      '<div class="reco-tip">点一点会发出声音哦，和宝宝一起读吧～</div></div>'+
+      '<button class="reco-btn" onclick="openBookAny(\''+recoBook.id+'\')">去读</button></div>';
+  }else{
+    reco.innerHTML='<div class="book-reco"><div class="reco-info">'+
+      '<span class="reco-tag" style="background:#DFF2E7;color:#2E8B5C">今日全读完</span>'+
+      '<div class="reco-name">绘本都读完了，真棒！</div>'+
+      '<div class="reco-tip">明天再来读新故事吧，可以复习喜欢的绘本～</div></div></div>';
+  }
+  var html='';
+  var all=BOOKS.concat(getCustom());
+  all.forEach(function(b){
+    var read=bookTodayRead(b.id);
+    html+='<div class="book-item">'+
+      '<div class="bk-cover"><span class="bk-badge">'+esc(b.tag||'相册')+'</span>'+bookCover(b)+'</div>'+
+      '<div class="bk-info"><div class="nm">'+esc(b.title)+'</div>'+
+      '<div class="sub"><span>'+(b.img?'照片':'共 '+(b.pages?b.pages.length:'—')+' 页')+'</span>'+(read?'<span class="mini-done">今日已读</span>':'<span>点一点有惊喜</span>')+'</div>'+
+      '<button class="bk-open'+(read?' done':'')+'" onclick="openBookAny(\''+b.id+'\')">'+(read?'再读一次':'开始读')+'</button></div></div>';
+  });
+  list.innerHTML=html;
+  tip.innerHTML='<div class="empty-tip" style="padding:10px 0 2px">今日已读 '+todayReadN+' 本'+(todayReadN>0?' · 读完一本得 2 金币':'')+'</div>';
+}
+function goRead(){
+  var el=document.querySelector('#bookReco');
+  if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+/* ============ 阅读器 ============ */
+var bk=null; /* {id,title,img,pages,page,done,gotCoin,autoSpeed,timer} */
+function openBookAny(id){
+  var c=getCustom().find(function(x){return x.id===id});
+  if(c)openCustom(c);else{
+    var b=BOOKS.find(function(x){return x.id===id});
+    if(b)openBook(b);
+  }
+}
+function openBook(b){
+  bk={id:b.id,title:b.title,img:null,pages:b.pages.map(function(p){return {txt:p.txt,svg:pbSvg(p),tap:p.tap||[]}}),page:0,done:false,gotCoin:false,autoSpeed:0,timer:null};
+  buildReader();
+}
+function openCustom(c){
+  var pages=c.imgs.map(function(src){
+    return {txt:c.title+' 的照片，真好看！',svg:'',tap:[],img:src};
+  });
+  bk={id:c.id,title:c.title,img:c.imgs[0],pages:pages,page:0,done:false,gotCoin:false,autoSpeed:0,timer:null};
+  buildReader();
+}
+function buildReader(){
+  if(document.getElementById('reader'))document.getElementById('reader').remove();
+  var o=document.createElement('div');o.className='reader';o.id='reader';
+  o.innerHTML='<div class="reader-top">'+
+    '<button class="rt-close" onclick="closeBook()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#6E675A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
+    '<div class="rt-title">'+esc(bk.title)+'</div>'+
+    '<button class="rt-auto" id="rtAuto" onclick="toggleAuto()">自动</button></div>'+
+    '<div class="reader-stage"><div class="reader-scene" id="rdScene"></div></div>'+
+    '<div class="reader-txt"><div class="rt-word" id="rdWord"></div>'+
+    '<button class="rt-speak" onclick="speakNow()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 10v4h4l5 4V6l-5 4H5z" fill="#fff"/><path d="M16 9.5a4.5 4.5 0 010 5M18 7a8 8 0 010 10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button></div>'+
+    '<div class="reader-nav"><button class="prev" id="rdPrev" onclick="prevPage()">上一页</button>'+
+    '<button class="next" id="rdNext" onclick="nextPage()">下一页</button></div>';
+  document.body.appendChild(o);
+  stopAuto();
+  renderReader();
+}
+function renderReader(){
+  if(!bk)return;
+  var pg=bk.pages[bk.page], scene=$('rdScene');
+  scene.classList.add('fade');
+  setTimeout(function(){
+    if(!bk)return;
+    scene.classList.remove('fade');
+    var svgHtml=pg.img?('<img src="'+pg.img+'" alt="" style="width:100%;height:100%;object-fit:cover">'):pg.svg;
+    var taps=pg.tap.map(function(t,ti){
+      return '<button class="tap-el" style="left:'+(t.x/300*100)+'%;top:'+(t.y/220*100)+'%" onclick="tapEl('+ti+')">'+
+        '<span class="ring"></span><span class="bubble">'+esc(t.label)+'</span></button>';
+    }).join('');
+    var doneH=bk.done?'<div class="book-done"><div class="bd-star">'+starSVG(1).replace('class="off"','')+'</div>'+
+      '<div class="bd-t1">读完啦，你真棒！</div><div class="bd-t2">'+esc(bk.title)+' 读完打卡'+(bk.gotCoin?'<br><span style="color:#C07F00;font-weight:800">+2 金币已到账</span>':'<br>今天已打过卡，明天再读新书吧')+'</div>'+
+      '<button onclick="closeBook()">好的</button></div>':'';
+    scene.innerHTML='<div class="scene-svg">'+svgHtml+'</div>'+taps+doneH;
+    $('rdWord').textContent=pg.txt;
+    $('rdPrev').disabled=(bk.page===0);
+    $('rdNext').disabled=bk.done;
+    $('rdNext').classList.toggle('done-btn',bk.page===bk.pages.length-1&&!bk.done);
+    $('rdNext').textContent=(bk.page===bk.pages.length-1&&!bk.done)?'读完啦':'下一页';
+  },220);
+  if(bk.autoSpeed&&bk.page<bk.pages.length-1&&!bk.done)scheduleAuto();
+}
+function nextPage(){
+  if(!bk||bk.done)return;
+  if(bk.page>=bk.pages.length-1){finishBook();return}
+  bk.page++;renderReader();
+}
+function prevPage(){if(!bk||bk.done)return;if(bk.page>0){bk.page--;renderReader()}}
+function tapEl(ti){
+  var pg=bk.pages[bk.page], t=pg.tap[ti];
+  if(!t||bk.done)return;
+  var btns=document.querySelectorAll('#rdScene .tap-el');
+  btns[ti].classList.add('show','pop');
+  setTimeout(function(){if(btns[ti])btns[ti].classList.remove('pop')},600);
+  setTimeout(function(){if(btns[ti])btns[ti].classList.remove('show')},1800);
+  speak(t.say||t.label);
+}
+function speakNow(){var pg=bk.pages[bk.page];if(pg)speak(pg.txt)}
+function speak(text){
+  try{
+    if(!('speechSynthesis' in window)){toast('本设备不支持朗读');return}
+    speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(String(text));
+    u.lang='zh-CN';u.rate=0.75;u.pitch=1.15;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function toggleAuto(){
+  var speeds=[0,8,5,3];
+  bk.autoSpeed=speeds[(speeds.indexOf(bk.autoSpeed)+1)%speeds.length];
+  var btn=$('rtAuto');
+  btn.textContent=bk.autoSpeed?('自动 '+bk.autoSpeed+'秒'):'自动';
+  btn.classList.toggle('on',bk.autoSpeed>0);
+  stopAuto();
+  if(bk.autoSpeed&&bk.page<bk.pages.length-1&&!bk.done)scheduleAuto();
+}
+function scheduleAuto(){
+  stopAuto();
+  bk.timer=setTimeout(function(){
+    if(!bk||bk.done)return;
+    if(bk.page>=bk.pages.length-1){finishBook();return}
+    bk.page++;renderReader();
+  },bk.autoSpeed*1000);
+}
+function stopAuto(){if(bk&&bk.timer){clearTimeout(bk.timer);bk.timer=null}}
+function finishBook(){
+  if(!bk||bk.done)return;
+  bk.done=true;bk.gotCoin=false;
+  stopAuto();
+  if(!bookTodayRead(bk.id)){
+    putCoins(getCoins()+2);
+    var rs=getReads();rs.push({date:today(),book:bk.id,title:bk.title});putReads(rs);
+    bk.gotCoin=true;
+  }
+  renderReader();
+  refreshCoins();
+}
+function closeBook(){
+  stopAuto();
+  var o=document.getElementById('reader');if(o)o.remove();
+  bk=null;
+  renderAll();
+}
+function refreshCoins(){$('coinNum').textContent=getCoins()}
+
+/* ============ 家长面板 ============ */
+var paTab='manage';
+function renderParent(){switchPaTab(paTab)}
+function switchPaTab(t){
+  paTab=t;
+  document.querySelectorAll('.pa-tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.pa===t)});
+  $('paManage').classList.toggle('hidden',t!=='manage');
+  $('paData').classList.toggle('hidden',t!=='data');
+  if(t==='manage')renderPaManage();
+  if(t==='data')renderPaData();
+}
+function renderPaManage(){
+  var box=$('paManage'), reads=getReads(), cs=getCustom();
+  var html='<div class="stats-grid">'+
+    '<div class="st-box"><div class="num">'+reads.length+'</div><div class="lb">累计读本</div></div>'+
+    '<div class="st-box"><div class="num">'+bookTodayN()+'</div><div class="lb">今日读本</div></div>'+
+    '<div class="st-box"><div class="num">'+readStreak()+'</div><div class="lb">连续阅读(天)</div></div>'+
+    '<div class="st-box"><div class="num">'+BOOKS.length+'</div><div class="lb">内置绘本</div></div></div>';
+  html+='<div class="pa-block" style="margin-top:14px"><h4>家庭相册绘本</h4>'+
+    '<p style="font-size:13px;color:#8A8578;line-height:1.6;margin-bottom:10px">上传 1-9 张宝宝的照片，自动生成一本"我的相册"绘本。2 岁宝宝最爱看自己的照片啦！照片只保存在本机浏览器，不上传服务器。</p>'+
+    '<div class="pa-row"><label>绘本名字</label><input id="albumTitle" placeholder="如：我的相册" maxlength="12" style="flex:1"></div>'+
+    '<button class="add-btn" style="margin-top:10px;width:100%" onclick="addAlbum()">上传照片做绘本（最多 9 张）</button></div>';
+  if(cs.length){
+    cs.forEach(function(c){
+      html+='<div class="pa-block" style="margin-top:12px"><h4>'+esc(c.title)+' <span style="color:#8A8578;font-weight:400;font-size:12.5px">'+c.imgs.length+' 张 · '+esc(c.created||'')+'</span></h4>'+
+        '<div class="album-thumb"><img src="'+c.imgs[0]+'" alt=""></div>'+
+        '<div class="pa-row"><button class="add-btn" style="background:#E5484D" onclick="delAlbum(\''+c.id+'\')">删除这本相册</button></div></div>';
+    });
+  }
+  var recent=reads.slice().reverse().slice(0,6);
+  html+='<div class="pa-block" style="margin-top:14px"><h4>最近阅读</h4>';
+  if(!recent.length){html+='<div class="empty-tip">还没有阅读记录</div>'}
+  recent.forEach(function(r){
+    html+='<div class="req-item"><div class="ri-info"><div class="nm">'+esc(r.title)+'</div><div class="st">'+r.date+' · 亲子共读打卡</div></div></div>';
+  });
+  html+='</div>';
+  box.innerHTML=html;
+}
+function addAlbum(){
+  var title=$('albumTitle').value.trim()||'我的相册';
+  var inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';inp.multiple=true;
+  inp.onchange=function(){
+    var files=[].slice.call(inp.files).slice(0,9);
+    if(!files.length)return;
+    var imgs=[],read=0;
+    files.forEach(function(f,i){
+      var rd=new FileReader();
+      rd.onload=function(){
+        var img=new Image();
+        img.onload=function(){
+          var maxW=800,scale=Math.min(1,maxW/(img.width||maxW));
+          var w=Math.max(1,Math.round((img.width||1)*scale)),h=Math.max(1,Math.round((img.height||1)*scale));
+          var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+          cv.getContext('2d').drawImage(img,0,0,w,h);
+          imgs[i]=cv.toDataURL('image/jpeg',0.82);
+          if(++read===files.length)saveAlbum(title,imgs);
+        };
+        img.src=rd.result;
+      };
+      rd.readAsDataURL(f);
+    });
+  };
+  inp.click();
+}
+function saveAlbum(title,imgs){
+  var c=getCustom();
+  c.push({id:'c'+Date.now(),title:title,tag:'相册',imgs:imgs,created:today()});
+  putCustom(c);
+  renderPaManage();renderBook();
+  toast('相册绘本已创建，去书架看看吧');
+}
+function delAlbum(id){
+  confirmDlg('删除这本相册绘本吗？删除后照片不可恢复。',function(){
+    putCustom(getCustom().filter(function(x){return x.id!==id}));
+    renderPaManage();renderBook();
+    toast('已删除');
+  });
+}
+function renderPaData(){
+  var box=$('paData');
+  var html='<div class="pa-block"><h4>数据备份（重要！）</h4>'+
+    '<p style="font-size:13px;color:#8A8578;line-height:1.6;margin-bottom:12px">数据保存在本机浏览器里。换手机、清浏览器前，请先导出备份；恢复时再导入即可。建议每周导出一次。</p>'+
+    '<div class="bk-actions"><button class="ex" onclick="exportData()">导出备份</button>'+
+    '<button class="im" onclick="importData()">导入恢复</button></div></div>';
+  html+='<div class="pa-block"><h4>示例数据</h4>'+
+    '<p style="font-size:13px;color:#8A8578;margin-bottom:12px">首次使用已预置示例（阅读记录、金币）。开始正式使用前可以清空。</p>'+
+    '<div class="danger-actions"><button onclick="clearDemo()">清空示例数据</button>'+
+    '<button onclick="resetAll()">全部重置</button></div></div>';
+  html+='<div class="pa-block"><h4>修改家长密码</h4>'+
+    '<div class="pa-row"><label>新密码</label><input id="newPwd" type="password" inputmode="numeric" maxlength="4" placeholder="4位数字" style="flex:1"></div>'+
+    '<div class="pa-row"><button class="add-btn" onclick="changePwd()">保存新密码</button></div></div>';
+  html+='<div class="pa-block"><h4>关于</h4>'+
+    '<p style="font-size:13px;color:#8A8578;line-height:1.7">宝宝绘本馆 · 2 岁宝宝专属<br>点一点会发声 · 自动翻页 · 读完得金币。孩子模式无密码，家长模式 4 位密码保护（仅防误触，非强加密）。</p></div>';
+  box.innerHTML=html;
+}
+function exportData(){
+  var data={ver:1,reads:getReads(),custom:getCustom(),coins:getCoins(),exported:today()};
+  var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='宝宝绘本馆备份_'+today()+'.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},300);
+  toast('备份文件已下载');
+}
+function importData(){
+  var inp=document.createElement('input');
+  inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=function(){
+    var f=inp.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var d=JSON.parse(rd.result);
+        if(!d.reads&&!d.custom&&d.coins===undefined)throw new Error('bad');
+        if(d.reads)localStorage.setItem(K.reads,JSON.stringify(d.reads));
+        if(d.custom)localStorage.setItem(K.custom,JSON.stringify(d.custom));
+        if(d.coins!==undefined)localStorage.setItem(K.coins,JSON.stringify(d.coins));
+        renderAll();
+        toast('导入成功！');
+      }catch(e){toast('文件格式不对，导入失败')}
+    };
+    rd.readAsText(f);
+  };
+  inp.click();
+}
+function clearDemo(){
+  confirmDlg('将清空示例数据（阅读记录、金币），确定吗？',function(){
+    localStorage.removeItem(K.reads);
+    localStorage.removeItem(K.custom);
+    putCoins(0);
+    putReads([]);
+    putCustom([]);
+    renderAll();
+    toast('示例数据已清空');
+  });
+}
+function resetAll(){
+  confirmDlg('将删除全部数据并恢复初始状态，确定吗？',function(){
+    localStorage.removeItem(K.reads);localStorage.removeItem(K.custom);
+    localStorage.removeItem(K.coins);localStorage.removeItem(K.pwd);localStorage.removeItem(K.pwdSet);
+    initDemo();
+    renderAll();
+    toast('已重置');
+  });
+}
+function changePwd(){
+  var v=$('newPwd').value.trim();
+  if(!/^\d{4}$/.test(v)){toast('请输入 4 位数字密码');return}
+  localStorage.setItem(K.pwd,v);localStorage.setItem(K.pwdSet,'1');
+  toast('家长密码已更新');
+}
+
+/* ============ 家长密码 ============ */
+var pwdBuf='';
+function openParent(){
+  if(hasPwd()){
+    showPwd('请输入家长密码',function(){enterParent()});
+  }else{
+    showPwd('设置 4 位家长密码',function(){localStorage.setItem(K.pwd,pwdBuf);localStorage.setItem(K.pwdSet,'1');pwdBuf='';enterParent();toast('密码设置成功')},true);
+  }
+}
+function showPwd(title,cb,isSet){
+  pwdBuf='';
+  var o=document.createElement('div');o.className='pwd-overlay';o.id='pwdOv';
+  o.innerHTML='<div class="pwd-card"><h3>'+title+'</h3>'+
+    '<div class="sub">输入 4 位数字</div>'+
+    '<div class="pwd-inputs" id="pwdDots">'+[0,1,2,3].map(function(){return '<div class="dot"></div>'}).join('')+'</div>'+
+    '<div class="pwd-err" id="pwdErr"></div>'+
+    '<div class="pwd-keypad">'+[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(function(n,i){
+      if(n==='')return '<button style="visibility:hidden"></button>';
+      if(n==='⌫')return '<button onclick="pwdKey(-1)">⌫</button>';
+      return '<button onclick="pwdKey('+n+')">'+n+'</button>';
+    }).join('')+'</div>'+
+    '<button style="width:100%;height:50px;border-radius:14px;background:#F3EEE3;font-size:15px;color:#6E675A;margin-top:4px" onclick="closePwd()">取消</button></div>';
+  document.body.appendChild(o);
+  o._cb=cb;o._isSet=isSet;
+}
+function pwdKey(n){
+  var o=$('pwdOv');if(!o)return;
+  if(n===-1){pwdBuf=pwdBuf.slice(0,-1)}
+  else if(pwdBuf.length<4){pwdBuf+=n}
+  var dots=o.querySelectorAll('.pwd-inputs .dot');
+  for(var i=0;i<4;i++){dots[i].classList.toggle('filled',i<pwdBuf.length);dots[i].textContent=pwdBuf[i]||''}
+  if(pwdBuf.length===4){
+    var err=o.querySelector('#pwdErr');
+    if(o._isSet){o._cb();o.remove();return}
+    if(pwdBuf===getPwd()){o._cb();o.remove()}
+    else{err.textContent='密码不对，再试一次';pwdBuf='';for(var j=0;j<4;j++){dots[j].classList.remove('filled');dots[j].textContent=''}}
+  }
+}
+function closePwd(){var o=$('pwdOv');if(o)o.remove();pwdBuf=''}
+function enterParent(){
+  state.mode='parent';
+  $('kidView').classList.add('hidden');
+  $('parentView').classList.remove('hidden');
+  $('modeKid').classList.remove('on');$('modeKid').classList.add('off');
+  $('modeParent').classList.add('on');$('modeParent').classList.remove('off');
+  renderParent();
+}
+function enterKid(){
+  state.mode='kid';
+  $('parentView').classList.add('hidden');
+  $('kidView').classList.remove('hidden');
+  $('modeParent').classList.remove('on');$('modeParent').classList.add('off');
+  $('modeKid').classList.add('on');$('modeKid').classList.remove('off');
+  renderAll();
+}
+
+/* ============ 示例数据 & 初始化 ============ */
+function initDemo(){
+  /* 昨天读了《小猫咪的一天》，今天还没读 → 首页标红提醒（模拟逾期顺延） */
+  var y=yesterday();
+  if(!load(K.reads,null)){
+    putReads([{date:y,book:'cat',title:'小猫咪的一天'}]);
+  }
+  if(!load(K.custom,null)){
+    putCustom([]);
+  }
+  if(!load(K.coins,null)){
+    putCoins(8);
+  }
+}
+function renderAll(){
+  renderHome();renderBook();refreshCoins();
+}
+(function init(){
+  $('todayLine').textContent=todayCN();
+  if(!localStorage.getItem(K.reads))initDemo();
+  $('modeKid').onclick=function(){enterKid()};
+  $('modeParent').onclick=function(){openParent()};
+  document.querySelectorAll('.pa-tabs button').forEach(function(b){
+    b.onclick=function(){switchPaTab(b.dataset.pa)};
+  });
+  renderAll();
+})();
+</script>
+</body>
+</html>
